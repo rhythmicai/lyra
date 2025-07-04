@@ -6,12 +6,14 @@ import { join } from 'path';
 import { GitHubPR, PRMetrics } from '../types/index.js';
 import { traceable } from 'langsmith/traceable';
 import { GH_CLI_FALLBACK_TOKEN } from '../constants.js';
+import { DocumentationAnalysisTools } from './documentation-analysis-tools.js';
 
 const execAsync = promisify(exec);
 
 export class GitHubTools {
   private octokit: Octokit;
   private usingGHCli: boolean = false;
+  private docAnalysisTools: DocumentationAnalysisTools;
 
   constructor(token: string) {
     this.usingGHCli = token === GH_CLI_FALLBACK_TOKEN;
@@ -19,6 +21,7 @@ export class GitHubTools {
     this.octokit = new Octokit({ 
       auth: this.usingGHCli ? undefined : token 
     });
+    this.docAnalysisTools = new DocumentationAnalysisTools();
   }
 
   private async checkGHCliAvailable(): Promise<boolean> {
@@ -263,7 +266,7 @@ export class GitHubTools {
       (line.match(/test|Test|TEST|\.test\.|_test\.|\.spec\./i) || false)
     ).length;
 
-    // Count documentation additions
+    // Count documentation additions (basic count for backward compatibility)
     const docAdditions = lines.filter(line =>
       line.startsWith('+') &&
       (line.match(/README|\.md|\/\*\*|\/\/\/|#.*TODO|#.*FIXME/i) || false)
@@ -275,15 +278,69 @@ export class GitHubTools {
       (line.match(/password|secret|token|api_key|private_key|auth/i) || false)
     ).length;
 
+    // Get list of changed files from PR details
+    let changedFiles: string[] = [];
+    try {
+      // Try to get file list from GitHub API if available
+      const [owner, repo] = prDetails.url ? 
+        prDetails.url.match(/github\.com\/([^/]+)\/([^/]+)/)?.slice(1, 3) || ['', ''] : 
+        ['', ''];
+      
+      if (owner && repo && prDetails.number) {
+        if (this.usingGHCli) {
+          const { stdout } = await execAsync(
+            `gh pr view ${prDetails.number} --repo ${owner}/${repo} --json files`
+          );
+          const data = JSON.parse(stdout);
+          changedFiles = data.files?.map((f: any) => f.path) || [];
+        } else {
+          const { data } = await this.octokit.pulls.listFiles({
+            owner,
+            repo,
+            pull_number: prDetails.number
+          });
+          changedFiles = data.map(f => f.filename);
+        }
+      }
+    } catch (error) {
+      console.warn('Could not fetch file list for PR:', error);
+      // Fall back to parsing from diff
+      changedFiles = this.extractFilesFromDiff(diff);
+    }
+
+    // Perform comprehensive documentation analysis
+    const docMetrics = await this.docAnalysisTools.analyzePRDocumentation(diff, changedFiles);
+
     return {
       testAdditions,
       docAdditions,
       securityPatternMatches,
       totalAdditions: prDetails.additions || 0,
       totalDeletions: prDetails.deletions || 0,
-      filesChanged: prDetails.changedFiles || 0
+      filesChanged: prDetails.changedFiles || 0,
+      documentationMetrics: {
+        ...docMetrics,
+        undocumentedSymbols: [],
+        suggestions: this.docAnalysisTools.generateDocumentationSuggestions(docMetrics)
+      }
     };
   }, { name: 'github_analyze_pr_metrics' });
+
+  private extractFilesFromDiff(diff: string): string[] {
+    const files: string[] = [];
+    const lines = diff.split('\n');
+    
+    for (const line of lines) {
+      if (line.startsWith('diff --git')) {
+        const match = line.match(/b\/(.+)$/);
+        if (match) {
+          files.push(match[1]);
+        }
+      }
+    }
+    
+    return files;
+  }
 
   async generateActivityReport(username: string, outputDir: string): Promise<string> {
     const date = new Date().toISOString().split('T')[0];

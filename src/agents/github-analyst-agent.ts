@@ -243,6 +243,9 @@ Metrics:
 - Average PR size: ${result.metrics.averagePRSize.toFixed(0)} changes
 - Test-to-code ratio: ${result.metrics.testToCodeRatio.toFixed(1)}%
 - Documentation ratio: ${(result.metrics.totalDocAdditions / Math.max(result.metrics.totalAdditions, 1) * 100).toFixed(1)}%
+- Documentation quality score: ${result.metrics.documentationScore ? result.metrics.documentationScore.toFixed(0) + '/100' : 'N/A'}
+- Code documentation score: ${result.metrics.codeDocumentationScore ? result.metrics.codeDocumentationScore.toFixed(0) + '/100' : 'N/A'}
+- Project documentation score: ${result.metrics.projectDocumentationScore ? result.metrics.projectDocumentationScore.toFixed(0) + '/100' : 'N/A'}
 
 Current Findings:
 ${result.findings.join('\n')}
@@ -376,6 +379,14 @@ This analysis examined ${report.totalPRsAnalyzed} pull requests to assess code q
 | Test-to-Code Ratio | ${report.metrics.testToCodeRatio.toFixed(1)}% |
 | Documentation Updates | ${report.metrics.totalDocAdditions} lines |
 | Total Code Changes | +${report.metrics.totalAdditions} / -${report.metrics.totalDeletions} |
+
+### Documentation Quality
+
+| Metric | Score |
+|--------|--------|
+| Overall Documentation | ${report.metrics.documentationScore ? report.metrics.documentationScore.toFixed(0) + '/100' : 'N/A'} |
+| Code Documentation | ${report.metrics.codeDocumentationScore ? report.metrics.codeDocumentationScore.toFixed(0) + '/100' : 'N/A'} |
+| Project Documentation | ${report.metrics.projectDocumentationScore ? report.metrics.projectDocumentationScore.toFixed(0) + '/100' : 'N/A'} |
 
 ### Activity Trends
 
