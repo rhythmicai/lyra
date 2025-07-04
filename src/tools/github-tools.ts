@@ -62,7 +62,7 @@ export class GitHubTools {
         }
       }
     }
-    throw new Error('Should not reach here');
+    assert.fail('retryWithBackoff: Unexpected code path reached');
   }
 
   searchPRs = traceable(async (query: string, limit: number = 100): Promise<GitHubPR[]> => {
