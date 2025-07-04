@@ -4,13 +4,22 @@ AI-powered GitHub repository analysis tool that provides comprehensive code qual
 
 ## Features
 
+### Code Quality Analysis
+- **Complexity Metrics**: Cyclomatic complexity, cognitive complexity, nesting depth analysis
+- **Maintainability Assessment**: Code duplication detection, naming convention validation, SOLID principles checking  
+- **Best Practices Detection**: Language-specific idioms, design patterns, anti-pattern identification
+- **Code Smell Detection**: Identifies maintainability issues and provides refactoring suggestions
+
+### Development Insights
 - **Personalized Coaching**: AI-generated development coaching from a senior engineer perspective
 - **Team Analysis**: Analyze any GitHub user's contributions - perfect for dev managers reviewing team members
 - **Comprehensive PR Analysis**: Analyzes pull requests for code quality, test coverage, and best practices
 - **AI-Powered Insights**: Uses GPT-4 to generate specific, actionable recommendations
+
+### Analysis Capabilities
 - **Flexible Selection**: Choose PRs by recency, size, time frame, or custom criteria
 - **Multi-Repository Support**: Analyze single repos or entire organizations
-- **Detailed Metrics**: Track test coverage, documentation, security patterns, and more
+- **Detailed Metrics**: Track test coverage, documentation, security patterns, and code quality scores
 - **Beautiful Reports**: Generates markdown reports with clear findings and recommendations
 
 ## Installation
@@ -105,6 +114,53 @@ lyra analyze -u "developer123" -r "myorg/myrepo" -s "last-week"
 
 # Analyze TypeScript files from last week
 lyra analyze -s "last-week" -l "typescript" -f "type safety, best practices"
+```
+
+## Code Quality Analysis
+
+Lyra provides comprehensive code quality analysis that examines your codebase for:
+
+### Complexity Metrics
+- **Cyclomatic Complexity**: Measures the number of linearly independent paths through code
+- **Cognitive Complexity**: Assesses the mental burden required to understand code
+- **Nesting Depth**: Identifies deeply nested code structures that impact readability
+- **Function Length**: Analyzes function size and suggests decomposition opportunities
+
+### Maintainability Assessment
+- **Code Duplication**: Detects repeated code blocks and suggests refactoring opportunities
+- **Naming Conventions**: Validates variable, function, and class naming against best practices
+- **SOLID Principles**: Checks adherence to Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion principles
+- **Code Organization**: Assesses overall code structure and organization
+
+### Best Practices Detection
+- **Language Idioms**: Validates usage of language-specific best practices and idioms
+- **Design Patterns**: Identifies correct and incorrect usage of common design patterns
+- **Anti-Patterns**: Detects problematic code patterns like God Objects, Spaghetti Code, and Copy-Paste Programming
+- **Code Smells**: Identifies maintainability issues like Long Parameter Lists, Large Classes, and Dead Code
+
+### Quality Scoring
+Each analysis generates:
+- **Overall Quality Score** (0-100): Weighted score based on all metrics
+- **Category Scores**: Individual scores for complexity, maintainability, and best practices
+- **Actionable Recommendations**: Specific suggestions for improvement
+- **Trend Analysis**: How quality metrics change over time
+
+### Sample Report Output
+```markdown
+### Code Quality Analysis
+
+| Category | Score | Status |
+|----------|-------|--------|
+| Overall Quality | 85/100 | ✅ Good |
+| Cyclomatic Complexity | 7.2 | ✅ Low |
+| Code Duplication | 2.1% | ✅ Low |
+| Naming Conventions | 92/100 | ✅ Good |
+| SOLID Principles | 78/100 | ⚠️ Fair |
+
+#### Recommendations
+1. Reduce cyclomatic complexity in `UserManager.processUser()` 
+2. Extract duplicate validation logic into shared utility functions
+3. Consider dependency injection for better testability
 ```
 
 ### Team Management Use Cases

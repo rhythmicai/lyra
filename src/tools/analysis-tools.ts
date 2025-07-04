@@ -1,6 +1,12 @@
-import { GitHubPR, PRMetrics, AnalysisResult } from '../types/index.js';
+import { GitHubPR, PRMetrics, AnalysisResult, ComplexityAnalysisSummary, MaintainabilityAnalysisSummary, BestPracticesAnalysisSummary } from '../types/index.js';
+import { CodeQualityTools } from './code-quality-tools.js';
 
 export class AnalysisTools {
+  private codeQualityTools: CodeQualityTools;
+
+  constructor() {
+    this.codeQualityTools = new CodeQualityTools();
+  }
   
   selectPRs(prs: GitHubPR[], criteria: string): GitHubPR[] {
     const sorted = [...prs].sort((a, b) => 
@@ -125,6 +131,174 @@ export class AnalysisTools {
     return { findings, recommendations, risks };
   }
 
+  /**
+   * Enrich PR metrics with code quality analysis
+   */
+  async enrichWithCodeQuality(
+    metrics: Record<string, PRMetrics>, 
+    getDiffContentFn: (prKey: string) => Promise<string>
+  ): Promise<Record<string, PRMetrics>> {
+    const enrichedMetrics: Record<string, PRMetrics> = {};
+    
+    for (const [prKey, prMetric] of Object.entries(metrics)) {
+      try {
+        const diffContent = await getDiffContentFn(prKey);
+        const codeQualityMetrics = this.codeQualityTools.analyzeCodeQuality(diffContent);
+        
+        enrichedMetrics[prKey] = {
+          ...prMetric,
+          codeQualityMetrics
+        };
+      } catch (error) {
+        console.warn(`Failed to analyze code quality for ${prKey}:`, error);
+        enrichedMetrics[prKey] = prMetric; // Keep original if analysis fails
+      }
+    }
+    
+    return enrichedMetrics;
+  }
+
+  /**
+   * Generate code quality analysis summary from enriched metrics
+   */
+  generateCodeQualityAnalysis(metrics: Record<string, PRMetrics>): {
+    overallScore: number;
+    complexityAnalysis: ComplexityAnalysisSummary;
+    maintainabilityAnalysis: MaintainabilityAnalysisSummary;
+    bestPracticesAnalysis: BestPracticesAnalysisSummary;
+  } {
+    const metricsWithQuality = Object.values(metrics).filter(m => m.codeQualityMetrics);
+    
+    if (metricsWithQuality.length === 0) {
+      // Return default values if no code quality metrics available
+      return {
+        overallScore: 0,
+        complexityAnalysis: {
+          averageCyclomaticComplexity: 0,
+          averageCognitiveComplexity: 0,
+          maxNestingDepth: 0,
+          averageFunctionLength: 0,
+          highComplexityFiles: [],
+          recommendations: ['No code quality metrics available for analysis']
+        },
+        maintainabilityAnalysis: {
+          duplicationPercentage: 0,
+          namingConventionScore: 0,
+          solidPrinciplesScore: 0,
+          codeSmellsCount: 0,
+          criticalIssues: [],
+          recommendations: ['No maintainability metrics available for analysis']
+        },
+        bestPracticesAnalysis: {
+          languageIdiomScore: 0,
+          designPatternUsage: 0,
+          antiPatternsCount: 0,
+          bestPracticeViolations: [],
+          recommendations: ['No best practices metrics available for analysis']
+        }
+      };
+    }
+
+    // Aggregate complexity metrics
+    const complexityMetrics = metricsWithQuality.map(m => m.codeQualityMetrics!);
+    const avgCyclomaticComplexity = complexityMetrics.reduce((sum, m) => sum + m.cyclomaticComplexity.average, 0) / complexityMetrics.length;
+    const avgCognitiveComplexity = complexityMetrics.reduce((sum, m) => sum + m.cognitiveComplexity.average, 0) / complexityMetrics.length;
+    const maxNestingDepth = Math.max(...complexityMetrics.map(m => m.nestingDepth.maximum));
+    const avgFunctionLength = complexityMetrics.reduce((sum, m) => sum + m.functionLength.average, 0) / complexityMetrics.length;
+    
+    // Identify high complexity files
+    const highComplexityFiles: string[] = [];
+    complexityMetrics.forEach(m => {
+      m.cyclomaticComplexity.files.forEach(f => {
+        if (f.score > 10) {
+          highComplexityFiles.push(f.path);
+        }
+      });
+    });
+
+    // Aggregate maintainability metrics
+    const avgDuplicationPercentage = complexityMetrics.reduce((sum, m) => sum + m.codeDuplication.percentage, 0) / complexityMetrics.length;
+    const avgNamingScore = complexityMetrics.reduce((sum, m) => sum + m.namingConventions.overall, 0) / complexityMetrics.length;
+    const avgSolidScore = complexityMetrics.reduce((sum, m) => sum + m.solidPrinciples.overall, 0) / complexityMetrics.length;
+    const totalCodeSmells = complexityMetrics.reduce((sum, m) => sum + m.codeSmells.length, 0);
+
+    // Aggregate best practices metrics
+    const avgLanguageIdiomScore = complexityMetrics.reduce((sum, m) => sum + m.languageIdioms.overall, 0) / complexityMetrics.length;
+    const totalAntiPatterns = complexityMetrics.reduce((sum, m) => sum + m.antiPatterns.length, 0);
+    const totalDesignPatterns = complexityMetrics.reduce((sum, m) => sum + m.designPatterns.length, 0);
+
+    // Generate recommendations
+    const complexityRecommendations: string[] = [];
+    if (avgCyclomaticComplexity > 10) {
+      complexityRecommendations.push('Reduce cyclomatic complexity by breaking down complex functions');
+    }
+    if (avgCognitiveComplexity > 15) {
+      complexityRecommendations.push('Simplify cognitive complexity by reducing nested conditions');
+    }
+    if (maxNestingDepth > 4) {
+      complexityRecommendations.push('Reduce nesting depth by extracting methods or using early returns');
+    }
+    if (avgFunctionLength > 50) {
+      complexityRecommendations.push('Break down long functions into smaller, more focused functions');
+    }
+
+    const maintainabilityRecommendations: string[] = [];
+    if (avgDuplicationPercentage > 5) {
+      maintainabilityRecommendations.push('Reduce code duplication by extracting common functionality');
+    }
+    if (avgNamingScore < 80) {
+      maintainabilityRecommendations.push('Improve naming conventions for better code readability');
+    }
+    if (avgSolidScore < 80) {
+      maintainabilityRecommendations.push('Review SOLID principles adherence to improve code design');
+    }
+    if (totalCodeSmells > 10) {
+      maintainabilityRecommendations.push('Address identified code smells to improve maintainability');
+    }
+
+    const bestPracticesRecommendations: string[] = [];
+    if (avgLanguageIdiomScore < 80) {
+      bestPracticesRecommendations.push('Follow language-specific idioms and best practices');
+    }
+    if (totalAntiPatterns > 0) {
+      bestPracticesRecommendations.push('Refactor identified anti-patterns to improve code quality');
+    }
+
+    // Calculate overall score (weighted average)
+    const complexityScore = Math.max(0, 100 - (avgCyclomaticComplexity * 2 + avgCognitiveComplexity * 1.5 + maxNestingDepth * 5));
+    const maintainabilityScore = (avgNamingScore + avgSolidScore + Math.max(0, 100 - avgDuplicationPercentage * 10)) / 3;
+    const bestPracticesScore = Math.max(0, avgLanguageIdiomScore - totalAntiPatterns * 10);
+    
+    const overallScore = (complexityScore * 0.4 + maintainabilityScore * 0.4 + bestPracticesScore * 0.2);
+
+    return {
+      overallScore: Math.round(overallScore),
+      complexityAnalysis: {
+        averageCyclomaticComplexity: Math.round(avgCyclomaticComplexity * 10) / 10,
+        averageCognitiveComplexity: Math.round(avgCognitiveComplexity * 10) / 10,
+        maxNestingDepth,
+        averageFunctionLength: Math.round(avgFunctionLength),
+        highComplexityFiles: [...new Set(highComplexityFiles)],
+        recommendations: complexityRecommendations
+      },
+      maintainabilityAnalysis: {
+        duplicationPercentage: Math.round(avgDuplicationPercentage * 10) / 10,
+        namingConventionScore: Math.round(avgNamingScore),
+        solidPrinciplesScore: Math.round(avgSolidScore),
+        codeSmellsCount: totalCodeSmells,
+        criticalIssues: [],
+        recommendations: maintainabilityRecommendations
+      },
+      bestPracticesAnalysis: {
+        languageIdiomScore: Math.round(avgLanguageIdiomScore),
+        designPatternUsage: totalDesignPatterns,
+        antiPatternsCount: totalAntiPatterns,
+        bestPracticeViolations: [],
+        recommendations: bestPracticesRecommendations
+      }
+    };
+  }
+
   generateAnalysisResult(
     prs: GitHubPR[],
     metrics: Record<string, PRMetrics>,
@@ -168,8 +342,31 @@ export class AnalysisTools {
 
     const analysis = this.analyzePRPatterns(prs, metrics);
     
-    // Merge time-based findings with pattern analysis findings
-    const allFindings = [...analysis.findings, ...timeBasedFindings];
+    // Generate code quality analysis
+    const codeQuality = this.generateCodeQualityAnalysis(metrics);
+    
+    // Add code quality findings
+    const codeQualityFindings: string[] = [];
+    if (codeQuality.overallScore < 70) {
+      codeQualityFindings.push(`Low code quality score: ${codeQuality.overallScore}/100`);
+    }
+    if (codeQuality.complexityAnalysis.averageCyclomaticComplexity > 10) {
+      codeQualityFindings.push(`High cyclomatic complexity: ${codeQuality.complexityAnalysis.averageCyclomaticComplexity} average`);
+    }
+    if (codeQuality.maintainabilityAnalysis.duplicationPercentage > 5) {
+      codeQualityFindings.push(`Code duplication detected: ${codeQuality.maintainabilityAnalysis.duplicationPercentage}%`);
+    }
+    if (codeQuality.bestPracticesAnalysis.antiPatternsCount > 0) {
+      codeQualityFindings.push(`${codeQuality.bestPracticesAnalysis.antiPatternsCount} anti-patterns detected`);
+    }
+    
+    // Merge time-based findings with pattern analysis findings and code quality findings
+    const allFindings = [...analysis.findings, ...timeBasedFindings, ...codeQualityFindings];
+    
+    // Calculate additional metrics
+    const averageComplexity = codeQuality.complexityAnalysis.averageCyclomaticComplexity;
+    const maintainabilityIndex = (codeQuality.maintainabilityAnalysis.namingConventionScore + 
+                                  codeQuality.maintainabilityAnalysis.solidPrinciplesScore) / 2;
 
     return {
       totalPRsAnalyzed: prs.length,
@@ -183,11 +380,15 @@ export class AnalysisTools {
         totalDocAdditions,
         testToCodeRatio,
         mergeRate,
-        averagePRSize
+        averagePRSize,
+        averageComplexity,
+        codeQualityScore: codeQuality.overallScore,
+        maintainabilityIndex
       },
       findings: allFindings,
       recommendations: analysis.recommendations,
-      risks: analysis.risks
+      risks: analysis.risks,
+      codeQuality
     };
   }
 }
