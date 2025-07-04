@@ -1,0 +1,36 @@
+copilot:
+  commit_message_guidelines:
+    description: |
+      All commit messages MUST follow the Conventional Commits 1.0.0 specification.
+      Structure every commit message as follows:
+
+      <type>[optional scope][!]: <description>
+
+      [optional body]
+
+      [optional footer(s)]
+
+      Rules:
+        - Valid types: feat, fix, build, chore, ci, docs, style, refactor, perf, test, revert (others allowed for context, e.g. 'deps', 'merge').
+        - Type is lowercase, immediately followed by optional scope in parentheses, optional ! (for breaking changes), a colon and space, then a short description.
+        - Description should be concise and in present tense, e.g. "fix: update API URL".
+        - For breaking changes, add ! after type/scope (e.g., `feat(api)!: ...`) or add a footer: `BREAKING CHANGE: ...`
+        - Optional body: after one blank line, explain what/why (if needed), wrapped at 100 chars.
+        - Optional footers: after another blank line, e.g. `Refs: #123`, `BREAKING CHANGE: ...`, etc.
+        - Example: `feat(parser): support JSON arrays`
+        - Example with scope and breaking: `refactor(auth)!: migrate session handling`
+        - Example with footers:
+            ```
+            fix: handle null request objects
+
+            Ensures middleware will skip undefined requests.
+
+            Refs: #54
+            BREAKING CHANGE: API signature for middleware has changed.
+            ```
+
+      Enforce:
+        - Do NOT use messages like "Update file", "fix bug", "final commit", "misc changes".
+        - Each commit should represent one logical change; split if needed.
+
+      If you generate a commit message, **always** use this format.
