@@ -151,6 +151,29 @@ describe('GitHubTools', () => {
       expect(result).toHaveLength(1);
       expect(result[0].number).toBe(456);
     });
+
+    it('should return empty array when both CLI and API fail', async () => {
+      // Mock console methods to suppress error logs during testing
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Make the API call fail with a network error
+      mockOctokit.search.issuesAndPullRequests.mockRejectedValue(
+        new Error('connect ECONNREFUSED 140.82.113.5:443')
+      );
+
+      const result = await githubTools.searchPRs('author:testuser', 10);
+
+      expect(result).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith('Both GitHub CLI and API failed:', expect.any(Error));
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Unable to fetch PRs due to connectivity issues. This may be temporary - please check your network connection and GitHub API status.'
+      );
+
+      // Restore console methods
+      consoleSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
   });
 
   describe('getPRDetails', () => {

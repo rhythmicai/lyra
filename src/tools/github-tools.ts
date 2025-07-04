@@ -67,30 +67,36 @@ export class GitHubTools {
     }
 
     // Fallback to API
-    const response = await this.octokit.rest.search.issuesAndPullRequests({
-      q: `${query} is:pr`,
-      per_page: Math.min(limit, 100),
-      sort: 'created',
-      order: 'desc'
-    });
+    try {
+      const response = await this.octokit.rest.search.issuesAndPullRequests({
+        q: `${query} is:pr`,
+        per_page: Math.min(limit, 100),
+        sort: 'created',
+        order: 'desc'
+      });
 
-    return response.data.items.map(item => ({
-      repository: {
-        nameWithOwner: item.repository_url.replace('https://api.github.com/repos/', '')
-      },
-      number: item.number,
-      state: (item as any).pull_request?.merged_at ? 'MERGED' : item.state.toUpperCase(),
-      title: item.title,
-      body: item.body || '',
-      createdAt: item.created_at,
-      closedAt: item.closed_at,
-      mergedAt: (item as any).pull_request?.merged_at || null,
-      author: {
-        login: item.user?.login || 'unknown'
-      },
-      labels: item.labels.map(l => ({ name: typeof l === 'string' ? l : l.name || '' })),
-      url: item.html_url
-    }));
+      return response.data.items.map(item => ({
+        repository: {
+          nameWithOwner: item.repository_url.replace('https://api.github.com/repos/', '')
+        },
+        number: item.number,
+        state: (item as any).pull_request?.merged_at ? 'MERGED' : item.state.toUpperCase(),
+        title: item.title,
+        body: item.body || '',
+        createdAt: item.created_at,
+        closedAt: item.closed_at,
+        mergedAt: (item as any).pull_request?.merged_at || null,
+        author: {
+          login: item.user?.login || 'unknown'
+        },
+        labels: item.labels.map(l => ({ name: typeof l === 'string' ? l : l.name || '' })),
+        url: item.html_url
+      }));
+    } catch (error) {
+      console.error('Both GitHub CLI and API failed:', error);
+      console.warn('Unable to fetch PRs due to connectivity issues. This may be temporary - please check your network connection and GitHub API status.');
+      return [];
+    }
   }, { name: 'github_search_prs' });
 
   getPRDetails = traceable(async (owner: string, repo: string, prNumber: number): Promise<any> => {
