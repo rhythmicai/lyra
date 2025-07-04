@@ -10,6 +10,7 @@ import { AnalysisConfig } from './types/index.js';
 import { readFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { GH_CLI_FALLBACK_TOKEN } from './constants.js';
 
 // Load environment variables
 config();
@@ -83,7 +84,7 @@ async function runAnalysis(options: any) {
       const execAsync = promisify(exec);
       await execAsync('gh auth status');
       console.log(chalk.yellow('ℹ️ Using GitHub CLI authentication (no GITHUB_TOKEN found)'));
-      githubToken = 'gh-cli-fallback'; // Placeholder token - GitHubTools will use CLI
+      githubToken = GH_CLI_FALLBACK_TOKEN; // Placeholder token - GitHubTools will use CLI
     } catch (error) {
       console.error(chalk.red('❌ Missing GitHub authentication!'));
       console.log('\nPlease either:');
