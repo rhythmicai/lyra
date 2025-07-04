@@ -11,9 +11,14 @@ const execAsync = promisify(exec);
 export class GitHubTools {
   private octokit: Octokit;
   private ghCliAvailable: boolean = false;
+  private usingGHCli: boolean = false;
 
   constructor(token: string) {
-    this.octokit = new Octokit({ auth: token });
+    this.usingGHCli = token === 'gh-cli-fallback';
+    // Only initialize Octokit with real token, use dummy auth for CLI fallback
+    this.octokit = new Octokit({ 
+      auth: this.usingGHCli ? undefined : token 
+    });
     this.checkGHCli();
   }
 
@@ -67,6 +72,10 @@ export class GitHubTools {
     }
 
     // Fallback to API
+    if (this.usingGHCli) {
+      throw new Error('GitHub CLI failed and no GITHUB_TOKEN available. Please check your GitHub CLI authentication with: gh auth status');
+    }
+    
     const response = await this.octokit.rest.search.issuesAndPullRequests({
       q: `${query} is:pr`,
       per_page: Math.min(limit, 100),
@@ -105,6 +114,10 @@ export class GitHubTools {
       }
     }
 
+    if (this.usingGHCli) {
+      throw new Error('GitHub CLI failed and no GITHUB_TOKEN available. Please check your GitHub CLI authentication with: gh auth status');
+    }
+    
     const { data } = await this.octokit.pulls.get({
       owner,
       repo,
@@ -140,6 +153,10 @@ export class GitHubTools {
       }
     }
 
+    if (this.usingGHCli) {
+      throw new Error('GitHub CLI failed and no GITHUB_TOKEN available. Please check your GitHub CLI authentication with: gh auth status');
+    }
+    
     const { data } = await this.octokit.pulls.get({
       owner,
       repo,
@@ -153,6 +170,10 @@ export class GitHubTools {
   }, { name: 'github_get_pr_diff' });
 
   async getPRFiles(owner: string, repo: string, prNumber: number): Promise<any[]> {
+    if (this.usingGHCli) {
+      throw new Error('GitHub CLI failed and no GITHUB_TOKEN available. Please check your GitHub CLI authentication with: gh auth status');
+    }
+    
     const { data } = await this.octokit.pulls.listFiles({
       owner,
       repo,
