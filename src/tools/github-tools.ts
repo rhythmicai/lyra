@@ -3,15 +3,17 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { GitHubPR, PRMetrics } from '../types/index.js';
+import { GitHubPR, PRMetrics, PerformanceIssues } from '../types/index.js';
 import { traceable } from 'langsmith/traceable';
 import { GH_CLI_FALLBACK_TOKEN } from '../constants.js';
+import { PerformanceAnalysisTools } from './performance-analysis-tools.js';
 
 const execAsync = promisify(exec);
 
 export class GitHubTools {
   private octokit: Octokit;
   private usingGHCli: boolean = false;
+  private performanceAnalysis: PerformanceAnalysisTools;
 
   constructor(token: string) {
     this.usingGHCli = token === GH_CLI_FALLBACK_TOKEN;
@@ -19,6 +21,7 @@ export class GitHubTools {
     this.octokit = new Octokit({ 
       auth: this.usingGHCli ? undefined : token 
     });
+    this.performanceAnalysis = new PerformanceAnalysisTools();
   }
 
   private async checkGHCliAvailable(): Promise<boolean> {
@@ -62,7 +65,7 @@ export class GitHubTools {
         }
       }
     }
-    assert.fail('retryWithBackoff: Unexpected code path reached');
+    throw new Error('retryWithBackoff: Unexpected code path reached');
   }
 
   searchPRs = traceable(async (query: string, limit: number = 100): Promise<GitHubPR[]> => {
@@ -254,7 +257,7 @@ export class GitHubTools {
     }));
   }
 
-  analyzePRMetrics = traceable(async (diff: string, prDetails: any): Promise<PRMetrics> => {
+  analyzePRMetrics = traceable(async (diff: string, prDetails: any, owner?: string, repo?: string, prNumber?: number): Promise<PRMetrics> => {
     const lines = diff.split('\n');
     
     // Count test additions
@@ -275,13 +278,48 @@ export class GitHubTools {
       (line.match(/password|secret|token|api_key|private_key|auth/i) || false)
     ).length;
 
+    // Get performance analysis
+    let performanceIssues: PerformanceIssues = {
+      nPlusOneQueries: 0,
+      inefficientJoins: 0,
+      missingIndexSuggestions: 0,
+      queryOptimizationOpportunities: 0,
+      algorithmicComplexityIssues: 0,
+      memoryLeakPatterns: 0,
+      inefficientLoops: 0,
+      resourceManagementIssues: 0,
+      blockingOperations: 0,
+      asyncAwaitIssues: 0,
+      eventLoopBlocking: 0,
+      performanceAntiPatterns: 0,
+      bundleSizeIssues: 0,
+      renderPerformanceIssues: 0,
+      memoryUsageIssues: 0,
+      networkOptimizationIssues: 0
+    };
+
+    try {
+      // Get file list for bundle analysis
+      let filenames: string[] = [];
+      if (owner && repo && prNumber) {
+        const files = await this.getPRFiles(owner, repo, prNumber);
+        filenames = files.map(f => f.path);
+      }
+      
+      // Analyze performance issues
+      performanceIssues = this.performanceAnalysis.analyzePerformanceIssues(diff, filenames);
+    } catch (error) {
+      console.warn('Performance analysis failed:', error);
+    }
+
     return {
       testAdditions,
       docAdditions,
       securityPatternMatches,
       totalAdditions: prDetails.additions || 0,
       totalDeletions: prDetails.deletions || 0,
-      filesChanged: prDetails.changedFiles || 0
+      filesChanged: prDetails.changedFiles || 0,
+      performanceIssues
     };
   }, { name: 'github_analyze_pr_metrics' });
 

@@ -44,6 +44,14 @@ CODE QUALITY METRICS:
 - Average PR Size: ${analysisResult.metrics.averagePRSize.toFixed(0)} changes
 - Total Code Changes: +${analysisResult.metrics.totalAdditions} / -${analysisResult.metrics.totalDeletions}
 
+PERFORMANCE METRICS:
+- Total Performance Issues: ${analysisResult.metrics.performanceSummary.totalPerformanceIssues}
+- High Risk Performance Issues: ${analysisResult.metrics.performanceSummary.highRiskIssues}
+- Database Performance Issues: ${analysisResult.metrics.performanceSummary.databaseIssues}
+- Code Quality Issues: ${analysisResult.metrics.performanceSummary.codeQualityIssues}
+- Runtime Performance Issues: ${analysisResult.metrics.performanceSummary.runtimeIssues}
+- Frontend Performance Issues: ${analysisResult.metrics.performanceSummary.frontendIssues}
+
 KEY FINDINGS:
 ${analysisResult.findings.join('\n')}
 
@@ -53,11 +61,19 @@ ${analysisResult.risks.map(r => `- ${r.level.toUpperCase()}: ${r.description}`).
 Based on this data, write a personal, encouraging coaching letter to ${username}. Structure it as follows:
 
 1. **Opening**: Warm greeting acknowledging their efforts and contributions
-2. **Strengths Recognition**: Highlight 2-3 specific strengths based on the data
-3. **Growth Opportunities**: Identify 3-4 specific areas for improvement with concrete suggestions
-4. **Skill Development Plan**: Provide a prioritized 30/60/90 day plan for skill improvement
-5. **Resources & Next Steps**: Suggest specific resources, practices, or habits to adopt
-6. **Closing**: Encouraging message about their potential and growth trajectory
+2. **Strengths Recognition**: Highlight 2-3 specific strengths based on the data (including performance practices if applicable)
+3. **Growth Opportunities**: Identify 3-4 specific areas for improvement with concrete suggestions, including:
+   - Performance optimization opportunities (N+1 queries, blocking operations, memory management)
+   - Code quality improvements
+   - Testing and documentation practices
+4. **Performance Focus**: If performance issues are detected, provide specific guidance on:
+   - Database optimization techniques
+   - Async/await best practices
+   - Memory management strategies
+   - Frontend performance optimization
+5. **Skill Development Plan**: Provide a prioritized 30/60/90 day plan for skill improvement
+6. **Resources & Next Steps**: Suggest specific resources, practices, or habits to adopt
+7. **Closing**: Encouraging message about their potential and growth trajectory
 
 Write in a supportive, peer-to-peer tone. Be specific with examples from their data, but focus on growth and improvement rather than criticism. 
 Include practical tips they can implement immediately. Make it personal and actionable.`;

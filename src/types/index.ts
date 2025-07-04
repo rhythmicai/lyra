@@ -26,6 +26,34 @@ export interface PRMetrics {
   totalAdditions: number;
   totalDeletions: number;
   filesChanged: number;
+  // Performance metrics
+  performanceIssues: PerformanceIssues;
+}
+
+export interface PerformanceIssues {
+  // Database performance
+  nPlusOneQueries: number;
+  inefficientJoins: number;
+  missingIndexSuggestions: number;
+  queryOptimizationOpportunities: number;
+  
+  // Code performance
+  algorithmicComplexityIssues: number;
+  memoryLeakPatterns: number;
+  inefficientLoops: number;
+  resourceManagementIssues: number;
+  
+  // Runtime performance
+  blockingOperations: number;
+  asyncAwaitIssues: number;
+  eventLoopBlocking: number;
+  performanceAntiPatterns: number;
+  
+  // Frontend performance
+  bundleSizeIssues: number;
+  renderPerformanceIssues: number;
+  memoryUsageIssues: number;
+  networkOptimizationIssues: number;
 }
 
 export interface AnalysisConfig {
@@ -50,6 +78,15 @@ export interface AnalysisResult {
     testToCodeRatio: number;
     mergeRate: number;
     averagePRSize: number;
+    // Performance metrics summary
+    performanceSummary: {
+      totalPerformanceIssues: number;
+      highRiskIssues: number;
+      databaseIssues: number;
+      codeQualityIssues: number;
+      runtimeIssues: number;
+      frontendIssues: number;
+    };
   };
   findings: string[];
   recommendations: string[];

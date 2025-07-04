@@ -5,7 +5,27 @@ import { AnalysisTools } from '../src/tools/analysis-tools';
 import { CoachingTools } from '../src/tools/coaching-tools';
 import { ChatOpenAI } from '@langchain/openai';
 import { writeFile, mkdir, readFile } from 'fs/promises';
-import { AnalysisConfig } from '../src/types';
+import { AnalysisConfig, PerformanceIssues } from '../src/types';
+
+// Helper function to create default performance issues for tests
+const createDefaultPerformanceIssues = (): PerformanceIssues => ({
+  nPlusOneQueries: 0,
+  inefficientJoins: 0,
+  missingIndexSuggestions: 0,
+  queryOptimizationOpportunities: 0,
+  algorithmicComplexityIssues: 0,
+  memoryLeakPatterns: 0,
+  inefficientLoops: 0,
+  resourceManagementIssues: 0,
+  blockingOperations: 0,
+  asyncAwaitIssues: 0,
+  eventLoopBlocking: 0,
+  performanceAntiPatterns: 0,
+  bundleSizeIssues: 0,
+  renderPerformanceIssues: 0,
+  memoryUsageIssues: 0,
+  networkOptimizationIssues: 0
+});
 
 jest.mock('../src/tools/github-tools');
 jest.mock('../src/tools/analysis-tools');
@@ -208,7 +228,8 @@ describe.skip('GitHubAnalystAgent', () => {
         securityPatternMatches: 2,
         totalAdditions: 200,
         totalDeletions: 100,
-        filesChanged: 3
+        filesChanged: 3,
+        performanceIssues: createDefaultPerformanceIssues()
       });
 
       await agent.analyze(config);

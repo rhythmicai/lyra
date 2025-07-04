@@ -143,7 +143,7 @@ export class GitHubAnalystAgent {
           try {
             const prDetails = await this.githubTools.getPRDetails(owner, repo, pr.number);
             const diff = await this.githubTools.getPRDiff(owner, repo, pr.number);
-            const metrics = await this.githubTools.analyzePRMetrics(diff, prDetails);
+            const metrics = await this.githubTools.analyzePRMetrics(diff, prDetails, owner, repo, pr.number);
             
             // Update PR with additions/deletions from details
             pr.additions = prDetails.additions;
@@ -384,6 +384,27 @@ This analysis examined ${report.totalPRsAnalyzed} pull requests to assess code q
 | All Time | ${activityData?.summary?.totalPRs || 'N/A'} | ${activityData?.summary?.mergedPRs || 'N/A'} | ${activityData?.summary?.mergeRate || 'N/A'}% |
 | Last 90 Days | ${activityData?.summary?.last90Days?.totalPRs || 'N/A'} | ${activityData?.summary?.last90Days?.mergedPRs || 'N/A'} | ${activityData?.summary?.last90Days?.mergeRate || 'N/A'}% |
 | Last 30 Days | ${activityData?.summary?.last30Days?.totalPRs || 'N/A'} | ${activityData?.summary?.last30Days?.mergedPRs || 'N/A'} | ${activityData?.summary?.last30Days?.mergeRate || 'N/A'}% |
+
+### Performance Analysis
+
+| Category | Issues Found | Risk Level |
+|----------|--------------|------------|
+| Total Performance Issues | ${report.metrics.performanceSummary.totalPerformanceIssues} | ${report.metrics.performanceSummary.totalPerformanceIssues > 10 ? 'HIGH' : report.metrics.performanceSummary.totalPerformanceIssues > 5 ? 'MEDIUM' : 'LOW'} |
+| High Risk Issues | ${report.metrics.performanceSummary.highRiskIssues} | ${report.metrics.performanceSummary.highRiskIssues > 5 ? 'HIGH' : report.metrics.performanceSummary.highRiskIssues > 2 ? 'MEDIUM' : 'LOW'} |
+| Database Issues | ${report.metrics.performanceSummary.databaseIssues} | ${report.metrics.performanceSummary.databaseIssues > 5 ? 'HIGH' : report.metrics.performanceSummary.databaseIssues > 2 ? 'MEDIUM' : 'LOW'} |
+| Code Quality Issues | ${report.metrics.performanceSummary.codeQualityIssues} | ${report.metrics.performanceSummary.codeQualityIssues > 5 ? 'HIGH' : report.metrics.performanceSummary.codeQualityIssues > 2 ? 'MEDIUM' : 'LOW'} |
+| Runtime Issues | ${report.metrics.performanceSummary.runtimeIssues} | ${report.metrics.performanceSummary.runtimeIssues > 5 ? 'HIGH' : report.metrics.performanceSummary.runtimeIssues > 2 ? 'MEDIUM' : 'LOW'} |
+| Frontend Issues | ${report.metrics.performanceSummary.frontendIssues} | ${report.metrics.performanceSummary.frontendIssues > 5 ? 'HIGH' : report.metrics.performanceSummary.frontendIssues > 2 ? 'MEDIUM' : 'LOW'} |
+
+**Performance Impact**: ${
+  report.metrics.performanceSummary.totalPerformanceIssues === 0 
+    ? 'Excellent - No performance issues detected!'
+    : report.metrics.performanceSummary.totalPerformanceIssues < 5
+    ? 'Good - Minor performance optimizations possible'
+    : report.metrics.performanceSummary.totalPerformanceIssues < 15
+    ? 'Fair - Several performance improvements recommended'
+    : 'Poor - Significant performance issues require immediate attention'
+}
 
 ## Findings
 

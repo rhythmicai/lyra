@@ -1,6 +1,12 @@
 import { GitHubPR, PRMetrics, AnalysisResult } from '../types/index.js';
+import { PerformanceAnalysisTools } from './performance-analysis-tools.js';
 
 export class AnalysisTools {
+  private performanceAnalysis: PerformanceAnalysisTools;
+
+  constructor() {
+    this.performanceAnalysis = new PerformanceAnalysisTools();
+  }
   
   selectPRs(prs: GitHubPR[], criteria: string): GitHubPR[] {
     const sorted = [...prs].sort((a, b) => 
@@ -122,7 +128,72 @@ export class AnalysisTools {
       recommendations.push('Review security-sensitive changes carefully');
     }
 
+    // Performance analysis
+    const performanceAnalysis = this.analyzePerformancePatterns(metricsArray);
+    findings.push(...performanceAnalysis.findings);
+    recommendations.push(...performanceAnalysis.recommendations);
+    risks.push(...performanceAnalysis.risks);
+
     return { findings, recommendations, risks };
+  }
+
+  private analyzePerformancePatterns(metricsArray: PRMetrics[]): {
+    findings: string[];
+    recommendations: string[];
+    risks: Array<{ level: 'high' | 'medium' | 'low'; description: string }>;
+  } {
+    const findings: string[] = [];
+    const recommendations: string[] = [];
+    const risks: Array<{ level: 'high' | 'medium' | 'low'; description: string }> = [];
+
+    if (metricsArray.length === 0) {
+      return { findings, recommendations, risks };
+    }
+
+    // Aggregate performance issues across all PRs
+    const totalPerformanceIssues = metricsArray.reduce((acc, m) => {
+      const issues = m.performanceIssues;
+      return {
+        nPlusOneQueries: acc.nPlusOneQueries + issues.nPlusOneQueries,
+        inefficientJoins: acc.inefficientJoins + issues.inefficientJoins,
+        missingIndexSuggestions: acc.missingIndexSuggestions + issues.missingIndexSuggestions,
+        queryOptimizationOpportunities: acc.queryOptimizationOpportunities + issues.queryOptimizationOpportunities,
+        algorithmicComplexityIssues: acc.algorithmicComplexityIssues + issues.algorithmicComplexityIssues,
+        memoryLeakPatterns: acc.memoryLeakPatterns + issues.memoryLeakPatterns,
+        inefficientLoops: acc.inefficientLoops + issues.inefficientLoops,
+        resourceManagementIssues: acc.resourceManagementIssues + issues.resourceManagementIssues,
+        blockingOperations: acc.blockingOperations + issues.blockingOperations,
+        asyncAwaitIssues: acc.asyncAwaitIssues + issues.asyncAwaitIssues,
+        eventLoopBlocking: acc.eventLoopBlocking + issues.eventLoopBlocking,
+        performanceAntiPatterns: acc.performanceAntiPatterns + issues.performanceAntiPatterns,
+        bundleSizeIssues: acc.bundleSizeIssues + issues.bundleSizeIssues,
+        renderPerformanceIssues: acc.renderPerformanceIssues + issues.renderPerformanceIssues,
+        memoryUsageIssues: acc.memoryUsageIssues + issues.memoryUsageIssues,
+        networkOptimizationIssues: acc.networkOptimizationIssues + issues.networkOptimizationIssues
+      };
+    }, {
+      nPlusOneQueries: 0,
+      inefficientJoins: 0,
+      missingIndexSuggestions: 0,
+      queryOptimizationOpportunities: 0,
+      algorithmicComplexityIssues: 0,
+      memoryLeakPatterns: 0,
+      inefficientLoops: 0,
+      resourceManagementIssues: 0,
+      blockingOperations: 0,
+      asyncAwaitIssues: 0,
+      eventLoopBlocking: 0,
+      performanceAntiPatterns: 0,
+      bundleSizeIssues: 0,
+      renderPerformanceIssues: 0,
+      memoryUsageIssues: 0,
+      networkOptimizationIssues: 0
+    });
+
+    // Generate insights using the performance analysis tools
+    const performanceInsights = this.performanceAnalysis.generatePerformanceInsights(totalPerformanceIssues);
+    
+    return performanceInsights;
   }
 
   generateAnalysisResult(
@@ -168,6 +239,48 @@ export class AnalysisTools {
 
     const analysis = this.analyzePRPatterns(prs, metrics);
     
+    // Calculate performance summary
+    const totalPerformanceIssues = metricsArray.reduce((acc, m) => {
+      const issues = m.performanceIssues;
+      return {
+        nPlusOneQueries: acc.nPlusOneQueries + issues.nPlusOneQueries,
+        inefficientJoins: acc.inefficientJoins + issues.inefficientJoins,
+        missingIndexSuggestions: acc.missingIndexSuggestions + issues.missingIndexSuggestions,
+        queryOptimizationOpportunities: acc.queryOptimizationOpportunities + issues.queryOptimizationOpportunities,
+        algorithmicComplexityIssues: acc.algorithmicComplexityIssues + issues.algorithmicComplexityIssues,
+        memoryLeakPatterns: acc.memoryLeakPatterns + issues.memoryLeakPatterns,
+        inefficientLoops: acc.inefficientLoops + issues.inefficientLoops,
+        resourceManagementIssues: acc.resourceManagementIssues + issues.resourceManagementIssues,
+        blockingOperations: acc.blockingOperations + issues.blockingOperations,
+        asyncAwaitIssues: acc.asyncAwaitIssues + issues.asyncAwaitIssues,
+        eventLoopBlocking: acc.eventLoopBlocking + issues.eventLoopBlocking,
+        performanceAntiPatterns: acc.performanceAntiPatterns + issues.performanceAntiPatterns,
+        bundleSizeIssues: acc.bundleSizeIssues + issues.bundleSizeIssues,
+        renderPerformanceIssues: acc.renderPerformanceIssues + issues.renderPerformanceIssues,
+        memoryUsageIssues: acc.memoryUsageIssues + issues.memoryUsageIssues,
+        networkOptimizationIssues: acc.networkOptimizationIssues + issues.networkOptimizationIssues
+      };
+    }, {
+      nPlusOneQueries: 0, inefficientJoins: 0, missingIndexSuggestions: 0, queryOptimizationOpportunities: 0,
+      algorithmicComplexityIssues: 0, memoryLeakPatterns: 0, inefficientLoops: 0, resourceManagementIssues: 0,
+      blockingOperations: 0, asyncAwaitIssues: 0, eventLoopBlocking: 0, performanceAntiPatterns: 0,
+      bundleSizeIssues: 0, renderPerformanceIssues: 0, memoryUsageIssues: 0, networkOptimizationIssues: 0
+    });
+
+    const performanceSummary = {
+      totalPerformanceIssues: Object.values(totalPerformanceIssues).reduce((sum, count) => sum + count, 0),
+      highRiskIssues: totalPerformanceIssues.nPlusOneQueries + totalPerformanceIssues.memoryLeakPatterns + 
+                     totalPerformanceIssues.blockingOperations,
+      databaseIssues: totalPerformanceIssues.nPlusOneQueries + totalPerformanceIssues.inefficientJoins + 
+                     totalPerformanceIssues.missingIndexSuggestions + totalPerformanceIssues.queryOptimizationOpportunities,
+      codeQualityIssues: totalPerformanceIssues.algorithmicComplexityIssues + totalPerformanceIssues.memoryLeakPatterns +
+                        totalPerformanceIssues.inefficientLoops + totalPerformanceIssues.resourceManagementIssues,
+      runtimeIssues: totalPerformanceIssues.blockingOperations + totalPerformanceIssues.asyncAwaitIssues +
+                    totalPerformanceIssues.eventLoopBlocking + totalPerformanceIssues.performanceAntiPatterns,
+      frontendIssues: totalPerformanceIssues.bundleSizeIssues + totalPerformanceIssues.renderPerformanceIssues +
+                     totalPerformanceIssues.memoryUsageIssues + totalPerformanceIssues.networkOptimizationIssues
+    };
+    
     // Merge time-based findings with pattern analysis findings
     const allFindings = [...analysis.findings, ...timeBasedFindings];
 
@@ -183,7 +296,8 @@ export class AnalysisTools {
         totalDocAdditions,
         testToCodeRatio,
         mergeRate,
-        averagePRSize
+        averagePRSize,
+        performanceSummary
       },
       findings: allFindings,
       recommendations: analysis.recommendations,
