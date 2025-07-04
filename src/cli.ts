@@ -217,11 +217,18 @@ async function runAnalysis(options: any) {
     console.log(`   • ${username}-COACHING_ADVICE.md - Personalized development coaching`);
     console.log(`   • ${username}-analysis-data.json - Raw data for further processing\n`);
     
+    console.log(chalk.magenta.bold('🚀 New Performance Analysis Features:'));
+    console.log('   • Database performance (N+1 queries, inefficient joins, missing indexes)');
+    console.log('   • Code performance (algorithmic complexity, memory leaks, inefficient loops)');  
+    console.log('   • Runtime performance (blocking operations, async/await patterns)');
+    console.log('   • Frontend performance (bundle size, render performance, network optimization)\n');
+    
     console.log(chalk.blue.bold('Next steps:'));
     console.log('  1. Open COACHING_ADVICE.md for personalized improvement tips');
-    console.log('  2. Review COMPREHENSIVE_ASSESSMENT.md for detailed metrics');
-    console.log('  3. Share findings with your team');
-    console.log('  4. Implement the 30/60/90 day improvement plan\n');
+    console.log('  2. Review COMPREHENSIVE_ASSESSMENT.md for detailed metrics and performance analysis');
+    console.log('  3. Check the Performance Analysis section for optimization opportunities');
+    console.log('  4. Share findings with your team');
+    console.log('  5. Implement the 30/60/90 day improvement plan\n');
 
   } catch (error) {
     spinner.fail('Analysis failed');

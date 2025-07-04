@@ -1,6 +1,26 @@
 import { describe, test, expect, beforeEach } from '@jest/globals';
 import { AnalysisTools } from '../src/tools/analysis-tools';
-import { GitHubPR, PRMetrics } from '../src/types';
+import { GitHubPR, PRMetrics, PerformanceIssues } from '../src/types';
+
+// Helper function to create default performance issues for tests
+const createDefaultPerformanceIssues = (): PerformanceIssues => ({
+  nPlusOneQueries: 0,
+  inefficientJoins: 0,
+  missingIndexSuggestions: 0,
+  queryOptimizationOpportunities: 0,
+  algorithmicComplexityIssues: 0,
+  memoryLeakPatterns: 0,
+  inefficientLoops: 0,
+  resourceManagementIssues: 0,
+  blockingOperations: 0,
+  asyncAwaitIssues: 0,
+  eventLoopBlocking: 0,
+  performanceAntiPatterns: 0,
+  bundleSizeIssues: 0,
+  renderPerformanceIssues: 0,
+  memoryUsageIssues: 0,
+  networkOptimizationIssues: 0
+});
 
 describe('AnalysisTools', () => {
   let analysisTools: AnalysisTools;
@@ -102,7 +122,8 @@ describe('AnalysisTools', () => {
         securityPatternMatches: 2,
         totalAdditions: 100,
         totalDeletions: 50,
-        filesChanged: 5
+        filesChanged: 5,
+        performanceIssues: createDefaultPerformanceIssues()
       }
     };
 
@@ -150,7 +171,8 @@ describe('AnalysisTools', () => {
           securityPatternMatches: 0,
           totalAdditions: 100,
           totalDeletions: 50,
-          filesChanged: 5
+          filesChanged: 5,
+          performanceIssues: createDefaultPerformanceIssues()
         }
       };
 
