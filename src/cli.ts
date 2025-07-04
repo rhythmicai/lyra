@@ -85,7 +85,7 @@ async function runAnalysis(options: any) {
       await execAsync('gh auth status');
       console.log(chalk.yellow('ℹ️ Using GitHub CLI authentication (no GITHUB_TOKEN found)'));
       githubToken = GH_CLI_FALLBACK_TOKEN; // Placeholder token - GitHubTools will use CLI
-    } catch (error) {
+    } catch {
       console.error(chalk.red('❌ Missing GitHub authentication!'));
       console.log('\nPlease either:');
       console.log('  1. Set GITHUB_TOKEN in your .env file, OR');

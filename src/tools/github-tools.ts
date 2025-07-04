@@ -94,7 +94,7 @@ export class GitHubTools {
                 state: details.mergedAt ? 'MERGED' : pr.state.toUpperCase(),
                 mergedAt: details.mergedAt || null
               };
-            } catch (error) {
+            } catch {
               // If we can't get details, just use the original state
               return {
                 ...pr,
@@ -155,7 +155,7 @@ export class GitHubTools {
           `gh pr view ${prNumber} --repo ${owner}/${repo} --json url,body,createdAt,closedAt,additions,deletions,changedFiles,author,assignees,labels,headRefName,baseRefName,isDraft`
         );
         return JSON.parse(stdout);
-      } catch (error) {
+      } catch {
         throw new Error('GitHub CLI failed to get PR details. Please check your authentication with: gh auth status');
       }
     }
@@ -197,7 +197,7 @@ export class GitHubTools {
           `gh pr diff ${prNumber} --repo ${owner}/${repo}`
         );
         return stdout;
-      } catch (error) {
+      } catch {
         throw new Error('GitHub CLI failed to get PR diff. Please check your authentication with: gh auth status');
       }
     }
@@ -234,7 +234,7 @@ export class GitHubTools {
           deletions: file.deletions,
           changeType: file.changeType
         }));
-      } catch (error) {
+      } catch {
         throw new Error('GitHub CLI failed to get PR files. Please check your authentication with: gh auth status');
       }
     }
