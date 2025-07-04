@@ -10,6 +10,7 @@ import { AnalysisConfig } from './types/index.js';
 import { readFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { GH_CLI_FALLBACK_TOKEN } from './constants.js';
 
 // Load environment variables
 config();
@@ -72,15 +73,32 @@ async function runAnalysis(options: any) {
   console.log(chalk.blue.bold('\n🔍 GitHub Insights - AI-Powered Code Analysis\n'));
 
   // Check for required environment variables
-  const githubToken = process.env.GITHUB_TOKEN;
+  let githubToken = process.env.GITHUB_TOKEN;
   const openaiKey = process.env.OPENAI_API_KEY;
 
-  if (!githubToken || !openaiKey) {
-    console.error(chalk.red('❌ Missing required environment variables!'));
-    console.log('\nPlease set the following in your .env file:');
-    console.log('  GITHUB_TOKEN=your_github_token');
-    console.log('  OPENAI_API_KEY=your_openai_api_key');
-    console.log('\nSee .env.example for more details.');
+  // Check if GitHub CLI is available when token is missing
+  if (!githubToken) {
+    try {
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      await execAsync('gh auth status');
+      console.log(chalk.yellow('ℹ️ Using GitHub CLI authentication (no GITHUB_TOKEN found)'));
+      githubToken = GH_CLI_FALLBACK_TOKEN; // Placeholder token - GitHubTools will use CLI
+    } catch {
+      console.error(chalk.red('❌ Missing GitHub authentication!'));
+      console.log('\nPlease either:');
+      console.log('  1. Set GITHUB_TOKEN in your .env file, OR');
+      console.log('  2. Authenticate with GitHub CLI: gh auth login');
+      console.log('\nFor GITHUB_TOKEN: https://github.com/settings/tokens');
+      process.exit(1);
+    }
+  }
+
+  if (!openaiKey) {
+    console.error(chalk.red('❌ Missing OpenAI API key!'));
+    console.log('\nPlease set OPENAI_API_KEY in your .env file.');
+    console.log('Get your API key at: https://platform.openai.com/api-keys');
     process.exit(1);
   }
 

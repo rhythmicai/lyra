@@ -1,0 +1,1 @@
+export const GH_CLI_FALLBACK_TOKEN = 'gh-cli-fallback';

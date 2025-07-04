@@ -5,33 +5,78 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { GitHubPR, PRMetrics } from '../types/index.js';
 import { traceable } from 'langsmith/traceable';
+import { GH_CLI_FALLBACK_TOKEN } from '../constants.js';
 
 const execAsync = promisify(exec);
 
 export class GitHubTools {
   private octokit: Octokit;
-  private ghCliAvailable: boolean = false;
+  private usingGHCli: boolean = false;
 
   constructor(token: string) {
-    this.octokit = new Octokit({ auth: token });
-    this.checkGHCli();
+    this.usingGHCli = token === GH_CLI_FALLBACK_TOKEN;
+    // Only initialize Octokit with real token, use dummy auth for CLI fallback
+    this.octokit = new Octokit({ 
+      auth: this.usingGHCli ? undefined : token 
+    });
   }
 
-  private async checkGHCli() {
+  private async checkGHCliAvailable(): Promise<boolean> {
     try {
-      await execAsync('gh --version');
-      this.ghCliAvailable = true;
+      await execAsync('gh auth status');
+      return true;
     } catch {
-      console.warn('GitHub CLI not available, using API only');
+      return false;
     }
   }
 
-  searchPRs = traceable(async (query: string, limit: number = 100): Promise<GitHubPR[]> => {
-    if (this.ghCliAvailable) {
+  private async ensureGHCliAuth(): Promise<void> {
+    if (!this.usingGHCli) return;
+    
+    const isAvailable = await this.checkGHCliAvailable();
+    if (!isAvailable) {
+      throw new Error('GitHub CLI authentication required. Please run: gh auth login');
+    }
+  }
+
+  private async retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    delay: number = 1000
+  ): Promise<T> {
+    for (let i = 0; i < maxRetries; i++) {
       try {
-        const { stdout } = await execAsync(
-          `gh search prs "${query}" --limit=${limit} --json repository,number,state,title,body,createdAt,closedAt,author,labels,url`
-        );
+        return await fn();
+      } catch (error: any) {
+        if (i === maxRetries - 1) throw error;
+        
+        // Check if it's a network error
+        if (error.message?.includes('ECONNREFUSED') || 
+            error.message?.includes('fetch failed') ||
+            error.code === 'ECONNREFUSED') {
+          console.warn(`Network error (attempt ${i + 1}/${maxRetries}), retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+        } else {
+          throw error; // Don't retry non-network errors
+        }
+      }
+    }
+    assert.fail('retryWithBackoff: Unexpected code path reached');
+  }
+
+  searchPRs = traceable(async (query: string, limit: number = 100): Promise<GitHubPR[]> => {
+    // Try GitHub CLI first if we're in CLI mode
+    if (this.usingGHCli) {
+      await this.ensureGHCliAuth();
+      try {
+        const stdout = await this.retryWithBackoff(async () => {
+          const result = await execAsync(
+            `gh search prs "${query}" --limit=${limit} --json repository,number,state,title,body,createdAt,closedAt,author,labels,url`
+          );
+          return result.stdout;
+        });
+        
         const prs = JSON.parse(stdout);
         
         // For CLI results, we need to check each PR individually to get merge status
@@ -49,7 +94,7 @@ export class GitHubTools {
                 state: details.mergedAt ? 'MERGED' : pr.state.toUpperCase(),
                 mergedAt: details.mergedAt || null
               };
-            } catch (error) {
+            } catch {
               // If we can't get details, just use the original state
               return {
                 ...pr,
@@ -62,16 +107,24 @@ export class GitHubTools {
         
         return enrichedPRs;
       } catch (error) {
-        console.warn('Falling back to API:', error);
+        console.warn('GitHub CLI failed after retries, falling back to API:', error);
       }
     }
 
+    // If we're here and using CLI mode, the CLI must have failed
+    if (this.usingGHCli) {
+      throw new Error('GitHub CLI search failed. Please check your authentication with: gh auth status');
+    }
+    
     // Fallback to API
-    const response = await this.octokit.rest.search.issuesAndPullRequests({
-      q: `${query} is:pr`,
-      per_page: Math.min(limit, 100),
-      sort: 'created',
-      order: 'desc'
+    
+    const response = await this.retryWithBackoff(async () => {
+      return await this.octokit.rest.search.issuesAndPullRequests({
+        q: `${query} is:pr`,
+        per_page: Math.min(limit, 100),
+        sort: 'created',
+        order: 'desc'
+      });
     });
 
     return response.data.items.map(item => ({
@@ -94,17 +147,24 @@ export class GitHubTools {
   }, { name: 'github_search_prs' });
 
   getPRDetails = traceable(async (owner: string, repo: string, prNumber: number): Promise<any> => {
-    if (this.ghCliAvailable) {
+    // Try GitHub CLI first if we're in CLI mode
+    if (this.usingGHCli) {
+      await this.ensureGHCliAuth();
       try {
         const { stdout } = await execAsync(
           `gh pr view ${prNumber} --repo ${owner}/${repo} --json url,body,createdAt,closedAt,additions,deletions,changedFiles,author,assignees,labels,headRefName,baseRefName,isDraft`
         );
         return JSON.parse(stdout);
-      } catch (error) {
-        console.warn('Falling back to API:', error);
+      } catch {
+        throw new Error('GitHub CLI failed to get PR details. Please check your authentication with: gh auth status');
       }
     }
 
+    // If we're here and using CLI mode, we shouldn't proceed
+    if (this.usingGHCli) {
+      throw new Error('GitHub CLI failed to get PR details. Please check your authentication with: gh auth status');
+    }
+    
     const { data } = await this.octokit.pulls.get({
       owner,
       repo,
@@ -129,17 +189,24 @@ export class GitHubTools {
   }, { name: 'github_get_pr_details' });
 
   getPRDiff = traceable(async (owner: string, repo: string, prNumber: number): Promise<string> => {
-    if (this.ghCliAvailable) {
+    // Try GitHub CLI first if we're in CLI mode
+    if (this.usingGHCli) {
+      await this.ensureGHCliAuth();
       try {
         const { stdout } = await execAsync(
           `gh pr diff ${prNumber} --repo ${owner}/${repo}`
         );
         return stdout;
-      } catch (error) {
-        console.warn('Falling back to API:', error);
+      } catch {
+        throw new Error('GitHub CLI failed to get PR diff. Please check your authentication with: gh auth status');
       }
     }
 
+    // If we're here and using CLI mode, we shouldn't proceed
+    if (this.usingGHCli) {
+      throw new Error('GitHub CLI failed to get PR diff. Please check your authentication with: gh auth status');
+    }
+    
     const { data } = await this.octokit.pulls.get({
       owner,
       repo,
@@ -153,6 +220,25 @@ export class GitHubTools {
   }, { name: 'github_get_pr_diff' });
 
   async getPRFiles(owner: string, repo: string, prNumber: number): Promise<any[]> {
+    // Try GitHub CLI first if we're in CLI mode
+    if (this.usingGHCli) {
+      await this.ensureGHCliAuth();
+      try {
+        const { stdout } = await execAsync(
+          `gh pr view ${prNumber} --repo ${owner}/${repo} --json files`
+        );
+        const result = JSON.parse(stdout);
+        return result.files.map((file: any) => ({
+          path: file.path,
+          additions: file.additions,
+          deletions: file.deletions,
+          changeType: file.changeType
+        }));
+      } catch {
+        throw new Error('GitHub CLI failed to get PR files. Please check your authentication with: gh auth status');
+      }
+    }
+    
     const { data } = await this.octokit.pulls.listFiles({
       owner,
       repo,
