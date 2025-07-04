@@ -49,7 +49,7 @@ export class GitHubTools {
                 state: details.mergedAt ? 'MERGED' : pr.state.toUpperCase(),
                 mergedAt: details.mergedAt || null
               };
-            } catch (error) {
+            } catch {
               // If we can't get details, just use the original state
               return {
                 ...pr,
