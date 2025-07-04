@@ -156,12 +156,23 @@ export class GitHubAnalystAgent {
           }
         }
 
-        return {
+        // Enrich with code quality analysis
+        console.log('🔍 Performing code quality analysis...');
+        const enrichedAnalysis = await this.analysisTools.enrichWithCodeQuality(
           prAnalysis,
+          async (prKey: string) => {
+            const [repoName, prNumber] = prKey.split('#');
+            const [owner, repo] = repoName.split('/');
+            return await this.githubTools.getPRDiff(owner, repo, parseInt(prNumber));
+          }
+        );
+
+        return {
+          prAnalysis: enrichedAnalysis,
           currentStep: 'analysis_complete',
           messages: [
             ...state.messages,
-            new AIMessage(`Completed analysis of ${Object.keys(prAnalysis).length} PRs`)
+            new AIMessage(`Completed analysis of ${Object.keys(enrichedAnalysis).length} PRs with code quality metrics`)
           ]
         };
       } catch (error) {
@@ -232,6 +243,20 @@ export class GitHubAnalystAgent {
         );
 
         // Use AI to generate insights
+        const codeQualityInfo = result.codeQuality ? `
+Code Quality Metrics:
+- Overall Quality Score: ${result.codeQuality.overallScore}/100
+- Average Cyclomatic Complexity: ${result.codeQuality.complexityAnalysis.averageCyclomaticComplexity}
+- Average Cognitive Complexity: ${result.codeQuality.complexityAnalysis.averageCognitiveComplexity}
+- Max Nesting Depth: ${result.codeQuality.complexityAnalysis.maxNestingDepth}
+- Code Duplication: ${result.codeQuality.maintainabilityAnalysis.duplicationPercentage}%
+- Naming Convention Score: ${result.codeQuality.maintainabilityAnalysis.namingConventionScore}/100
+- SOLID Principles Score: ${result.codeQuality.maintainabilityAnalysis.solidPrinciplesScore}/100
+- Code Smells Count: ${result.codeQuality.maintainabilityAnalysis.codeSmellsCount}
+- Anti-patterns Count: ${result.codeQuality.bestPracticesAnalysis.antiPatternsCount}
+- Language Idiom Score: ${result.codeQuality.bestPracticesAnalysis.languageIdiomScore}/100
+` : 'Code Quality Metrics: Not available';
+
         const prompt = `
 Analyze the following GitHub repository metrics and provide specific, actionable insights:
 
@@ -243,14 +268,19 @@ Metrics:
 - Average PR size: ${result.metrics.averagePRSize.toFixed(0)} changes
 - Test-to-code ratio: ${result.metrics.testToCodeRatio.toFixed(1)}%
 - Documentation ratio: ${(result.metrics.totalDocAdditions / Math.max(result.metrics.totalAdditions, 1) * 100).toFixed(1)}%
+${result.metrics.averageComplexity !== undefined ? `- Average Complexity: ${result.metrics.averageComplexity.toFixed(1)}` : ''}
+${result.metrics.codeQualityScore !== undefined ? `- Code Quality Score: ${result.metrics.codeQualityScore}/100` : ''}
+${result.metrics.maintainabilityIndex !== undefined ? `- Maintainability Index: ${result.metrics.maintainabilityIndex.toFixed(1)}/100` : ''}
+
+${codeQualityInfo}
 
 Current Findings:
 ${result.findings.join('\n')}
 
 Based on this data and the review focus, provide:
 1. 3-5 additional specific insights about code quality and development practices
-2. 3-5 concrete recommendations for improvement
-3. Identify any patterns or trends that need attention
+2. 3-5 concrete recommendations for improvement, with emphasis on code quality if metrics are available
+3. Identify any patterns or trends that need attention, especially complexity and maintainability issues
 
 Format your response as JSON with arrays for "insights" and "recommendations".
 `;
@@ -376,6 +406,31 @@ This analysis examined ${report.totalPRsAnalyzed} pull requests to assess code q
 | Test-to-Code Ratio | ${report.metrics.testToCodeRatio.toFixed(1)}% |
 | Documentation Updates | ${report.metrics.totalDocAdditions} lines |
 | Total Code Changes | +${report.metrics.totalAdditions} / -${report.metrics.totalDeletions} |
+${report.metrics.codeQualityScore !== undefined ? `| Code Quality Score | ${report.metrics.codeQualityScore}/100 |` : ''}
+${report.metrics.averageComplexity !== undefined ? `| Average Complexity | ${report.metrics.averageComplexity.toFixed(1)} |` : ''}
+${report.metrics.maintainabilityIndex !== undefined ? `| Maintainability Index | ${report.metrics.maintainabilityIndex.toFixed(1)}/100 |` : ''}
+
+${report.codeQuality ? `### Code Quality Analysis
+
+| Category | Score | Status |
+|----------|-------|--------|
+| Overall Quality | ${report.codeQuality.overallScore}/100 | ${report.codeQuality.overallScore >= 80 ? '✅ Excellent' : report.codeQuality.overallScore >= 60 ? '⚠️ Good' : '❌ Needs Improvement'} |
+| Cyclomatic Complexity | ${report.codeQuality.complexityAnalysis.averageCyclomaticComplexity.toFixed(1)} | ${report.codeQuality.complexityAnalysis.averageCyclomaticComplexity <= 10 ? '✅ Low' : report.codeQuality.complexityAnalysis.averageCyclomaticComplexity <= 20 ? '⚠️ Medium' : '❌ High'} |
+| Cognitive Complexity | ${report.codeQuality.complexityAnalysis.averageCognitiveComplexity.toFixed(1)} | ${report.codeQuality.complexityAnalysis.averageCognitiveComplexity <= 15 ? '✅ Low' : report.codeQuality.complexityAnalysis.averageCognitiveComplexity <= 25 ? '⚠️ Medium' : '❌ High'} |
+| Code Duplication | ${report.codeQuality.maintainabilityAnalysis.duplicationPercentage}% | ${report.codeQuality.maintainabilityAnalysis.duplicationPercentage <= 3 ? '✅ Low' : report.codeQuality.maintainabilityAnalysis.duplicationPercentage <= 10 ? '⚠️ Medium' : '❌ High'} |
+| Naming Conventions | ${report.codeQuality.maintainabilityAnalysis.namingConventionScore}/100 | ${report.codeQuality.maintainabilityAnalysis.namingConventionScore >= 80 ? '✅ Good' : report.codeQuality.maintainabilityAnalysis.namingConventionScore >= 60 ? '⚠️ Fair' : '❌ Poor'} |
+| SOLID Principles | ${report.codeQuality.maintainabilityAnalysis.solidPrinciplesScore}/100 | ${report.codeQuality.maintainabilityAnalysis.solidPrinciplesScore >= 80 ? '✅ Good' : report.codeQuality.maintainabilityAnalysis.solidPrinciplesScore >= 60 ? '⚠️ Fair' : '❌ Poor'} |
+
+#### Complexity Details
+- **Maximum Nesting Depth**: ${report.codeQuality.complexityAnalysis.maxNestingDepth}
+- **Average Function Length**: ${report.codeQuality.complexityAnalysis.averageFunctionLength} lines
+- **High Complexity Files**: ${report.codeQuality.complexityAnalysis.highComplexityFiles.length > 0 ? report.codeQuality.complexityAnalysis.highComplexityFiles.join(', ') : 'None detected'}
+
+#### Maintainability Issues
+- **Code Smells**: ${report.codeQuality.maintainabilityAnalysis.codeSmellsCount}
+- **Anti-patterns**: ${report.codeQuality.bestPracticesAnalysis.antiPatternsCount}
+- **Language Idiom Score**: ${report.codeQuality.bestPracticesAnalysis.languageIdiomScore}/100
+` : ''}
 
 ### Activity Trends
 
@@ -393,7 +448,18 @@ ${report.findings.map((f: string) => `- ${f}`).join('\n')}
 
 ${report.risks.map((r: any) => `- **${r.level.toUpperCase()}**: ${r.description}`).join('\n')}
 
-## Recommendations
+${report.codeQuality ? `## Code Quality Recommendations
+
+### Complexity Improvements
+${report.codeQuality.complexityAnalysis.recommendations.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}
+
+### Maintainability Improvements  
+${report.codeQuality.maintainabilityAnalysis.recommendations.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}
+
+### Best Practices Improvements
+${report.codeQuality.bestPracticesAnalysis.recommendations.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}
+
+` : ''}## General Recommendations
 
 ${report.recommendations.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}
 
@@ -401,8 +467,9 @@ ${report.recommendations.map((r: string, i: number) => `${i + 1}. ${r}`).join('\
 
 1. Address high-risk issues immediately
 2. Implement recommended process improvements
-3. Schedule follow-up analysis in 30 days
-4. Track improvement metrics
+3. ${report.codeQuality ? 'Focus on code quality improvements, starting with complexity reduction' : 'Consider implementing code quality analysis tools'}
+4. Schedule follow-up analysis in 30 days
+5. Track improvement metrics
 
 ---
 *Generated by lyra - AI-powered GitHub analysis tool*
