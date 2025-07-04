@@ -105,7 +105,7 @@ export class AnalysisTools {
       recommendations.push('Break down large PRs into smaller, focused changes');
     }
 
-    // Analyze documentation
+    // Analyze documentation with comprehensive metrics
     const avgDocRatio = metricsArray.reduce((sum, m) =>
       sum + (m.totalAdditions > 0 ? m.docAdditions / m.totalAdditions : 0), 0
     ) / Math.max(metricsArray.length, 1);
@@ -113,6 +113,64 @@ export class AnalysisTools {
     if (avgDocRatio < 0.05) {
       findings.push('Low documentation updates relative to code changes');
       recommendations.push('Improve documentation practices and requirements');
+    }
+
+    // Enhanced documentation analysis
+    const docsMetrics = metricsArray.filter(m => m.documentationMetrics);
+    if (docsMetrics.length > 0) {
+      const avgDocScore = docsMetrics.reduce((sum, m) => 
+        sum + (m.documentationMetrics?.overallDocScore || 0), 0
+      ) / docsMetrics.length;
+      
+      const avgCodeDocScore = docsMetrics.reduce((sum, m) => 
+        sum + (m.documentationMetrics?.codeDocScore || 0), 0
+      ) / docsMetrics.length;
+      
+      const totalUndocumentedFunctions = docsMetrics.reduce((sum, m) => 
+        sum + (m.documentationMetrics?.totalFunctions || 0) - (m.documentationMetrics?.documentedFunctions || 0), 0
+      );
+      
+      const totalTodos = docsMetrics.reduce((sum, m) => 
+        sum + (m.documentationMetrics?.todoCount || 0) + (m.documentationMetrics?.fixmeCount || 0), 0
+      );
+
+      if (avgDocScore < 70) {
+        findings.push(`Documentation quality below standard: ${avgDocScore.toFixed(0)}/100`);
+        risks.push({
+          level: 'medium',
+          description: 'Poor documentation impacts maintainability and onboarding'
+        });
+      }
+      
+      if (avgCodeDocScore < 60) {
+        findings.push(`Code documentation insufficient: ${avgCodeDocScore.toFixed(0)}/100`);
+        recommendations.push('Add JSDoc/TSDoc comments to public APIs and complex functions');
+      }
+      
+      if (totalUndocumentedFunctions > 10) {
+        findings.push(`${totalUndocumentedFunctions} functions lack documentation`);
+        recommendations.push('Document all public functions and methods');
+      }
+      
+      if (totalTodos > 20) {
+        findings.push(`${totalTodos} TODO/FIXME comments need attention`);
+        recommendations.push('Create issues to track and resolve TODO/FIXME items');
+      }
+      
+      // Check for missing project documentation
+      const hasReadme = docsMetrics.some(m => m.documentationMetrics?.hasReadme);
+      const hasContributing = docsMetrics.some(m => m.documentationMetrics?.hasContributing);
+      const hasApiDocs = docsMetrics.some(m => m.documentationMetrics?.hasApiDocs);
+      
+      if (!hasReadme) {
+        recommendations.push('Create or update README.md with comprehensive project documentation');
+      }
+      if (!hasContributing) {
+        recommendations.push('Add CONTRIBUTING.md to guide new contributors');
+      }
+      if (!hasApiDocs) {
+        recommendations.push('Create API documentation for public interfaces');
+      }
     }
 
     // Security patterns
@@ -137,6 +195,15 @@ export class AnalysisTools {
     const totalDeletions = metricsArray.reduce((sum, m) => sum + m.totalDeletions, 0);
     const totalTestAdditions = metricsArray.reduce((sum, m) => sum + m.testAdditions, 0);
     const totalDocAdditions = metricsArray.reduce((sum, m) => sum + m.docAdditions, 0);
+    
+    // Aggregate enhanced documentation metrics
+    const docsMetrics = metricsArray.filter(m => m.documentationMetrics);
+    const avgDocumentationScore = docsMetrics.length > 0 ?
+      docsMetrics.reduce((sum, m) => sum + (m.documentationMetrics?.overallDocScore || 0), 0) / docsMetrics.length : 0;
+    const avgCodeDocScore = docsMetrics.length > 0 ?
+      docsMetrics.reduce((sum, m) => sum + (m.documentationMetrics?.codeDocScore || 0), 0) / docsMetrics.length : 0;
+    const avgProjectDocScore = docsMetrics.length > 0 ?
+      docsMetrics.reduce((sum, m) => sum + (m.documentationMetrics?.projectDocScore || 0), 0) / docsMetrics.length : 0;
     
     const mergedPRs = prs.filter(pr => pr.state === 'MERGED').length;
     const mergeRate = prs.length > 0 ? (mergedPRs / prs.length) * 100 : 0;
@@ -183,7 +250,10 @@ export class AnalysisTools {
         totalDocAdditions,
         testToCodeRatio,
         mergeRate,
-        averagePRSize
+        averagePRSize,
+        documentationScore: avgDocumentationScore,
+        codeDocumentationScore: avgCodeDocScore,
+        projectDocumentationScore: avgProjectDocScore
       },
       findings: allFindings,
       recommendations: analysis.recommendations,

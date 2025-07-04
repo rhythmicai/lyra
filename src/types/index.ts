@@ -26,6 +26,28 @@ export interface PRMetrics {
   totalAdditions: number;
   totalDeletions: number;
   filesChanged: number;
+  // Enhanced documentation metrics
+  documentationMetrics?: {
+    totalFunctions: number;
+    documentedFunctions: number;
+    totalClasses: number;
+    documentedClasses: number;
+    inlineCommentLines: number;
+    blockCommentLines: number;
+    todoCount: number;
+    fixmeCount: number;
+    commentToCodeRatio: number;
+    hasReadme: boolean;
+    readmeCompleteness: number;
+    hasContributing: boolean;
+    hasApiDocs: boolean;
+    markdownFileCount: number;
+    overallDocScore: number;
+    codeDocScore: number;
+    projectDocScore: number;
+    undocumentedSymbols?: string[];
+    suggestions?: string[];
+  };
 }
 
 export interface AnalysisConfig {
@@ -50,6 +72,10 @@ export interface AnalysisResult {
     testToCodeRatio: number;
     mergeRate: number;
     averagePRSize: number;
+    // Enhanced documentation metrics
+    documentationScore?: number;
+    codeDocumentationScore?: number;
+    projectDocumentationScore?: number;
   };
   findings: string[];
   recommendations: string[];
